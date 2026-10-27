@@ -25,8 +25,14 @@ jobs:
       - name: Install build
         run: pip install build
 
+      # The moving major tag (v1) shares a commit with vX.Y.Z, so `git describe` can pick
+      # either one. The trigger only matches vX.Y.Z, hence the ref name is the version.
       - name: Build package
-        run: python -m build
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          export SETUPTOOLS_SCM_PRETEND_VERSION="${TAG_NAME#v}"
+          python -m build
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v4
