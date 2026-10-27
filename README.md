@@ -84,6 +84,48 @@ Or it runs automatically on every `git commit` once pre-commit is installed:
 pre-commit install
 ```
 
+## GitHub Action
+
+Use the gate as a step in your workflow. It runs from the action's own checkout (standard library only, no `pip install`), so pinning `@v1` pins the gate version too.
+
+```yaml
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+      - run: pip install pytest pytest-cov
+      - run: pytest --cov=<your_package> --cov-report=xml
+
+      - name: Coverage gate
+        id: gate
+        uses: python-by-kelsoncm/pytest-coverage-gate@v1
+        # with:
+        #   coverage-xml: src/coverage.xml
+        #   baseline: src/.coverage-baseline
+```
+
+The step fails when coverage drops below the committed baseline and writes a summary table to the job page.
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `coverage-xml` | `coverage.xml` | Path to the Cobertura report |
+| `baseline` | `.coverage-baseline` | File holding the baseline percentage |
+| `update-baseline` | `false` | When `true`, rewrites the baseline in the workspace if coverage improved |
+| `python-version` | `3.x` | Python used to run the gate (3.9+) |
+
+| Output | Description |
+|--------|-------------|
+| `current` | Current coverage percentage |
+| `baseline` | Baseline percentage |
+| `delta` | `current - baseline`, in percentage points (e.g. `+1.25`) |
+| `status` | `ok`, `improved` or `fail` |
+
+> **CI never rewrites the baseline by default** (`update-baseline: false`): a change made in the runner is lost when the job ends. To raise the baseline, run the hook/CLI locally (it updates `.coverage-baseline` for you) and commit the result, or set `update-baseline: true` and commit/open a PR from a later step.
+
 ## Standalone usage
 
 The script can also be run directly without pre-commit:
@@ -102,12 +144,14 @@ pytest-coverage-gate --coverage-xml src/coverage.xml --baseline src/.coverage-ba
 ## Example output
 
 ```
-[coverage-gate] SUCC: cobertura evoluiu de atual 82.00% para 85.50%
+[coverage-gate] SUCC: coverage improved from 82.00% to 85.50%
 ```
 
 ```
-[coverage-gate] FAIL: cobertura regrediu de atual 85.50% para 79.00%
+[coverage-gate] FAIL: coverage regressed from 85.50% to 79.00%
 ```
+
+Pass `--check-only` to never rewrite the baseline (used by the GitHub Action by default).
 
 ## License
 

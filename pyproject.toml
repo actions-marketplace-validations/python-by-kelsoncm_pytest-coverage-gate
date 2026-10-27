@@ -31,3 +31,10 @@ pytest-coverage-gate = "coverage_gate:main"
 py-modules = ["coverage_gate"]
 
 [tool.setuptools_scm]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 120
