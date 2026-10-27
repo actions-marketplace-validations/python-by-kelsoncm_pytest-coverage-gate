@@ -1,0 +1,63 @@
+name: "Pytest Coverage Gate"
+description: "Coverage ratchet for Python projects: fails when coverage drops below a committed baseline and reports the delta."
+author: "Kelson da Costa Medeiros"
+
+branding:
+  icon: "shield"
+  color: "green"
+
+inputs:
+  coverage-xml:
+    description: "Path to the coverage.xml report (produced by pytest --cov --cov-report=xml)."
+    required: false
+    default: "coverage.xml"
+  baseline:
+    description: "Path to the file holding the baseline coverage percentage."
+    required: false
+    default: ".coverage-baseline"
+  update-baseline:
+    description: "When 'true', rewrites the baseline file in the workspace if coverage improved. Default 'false' (check only)."
+    required: false
+    default: "false"
+  python-version:
+    description: "Python version used to run the gate (3.9 or newer)."
+    required: false
+    default: "3.x"
+
+outputs:
+  current:
+    description: "Current coverage percentage."
+    value: ${{ steps.gate.outputs.current }}
+  baseline:
+    description: "Baseline coverage percentage."
+    value: ${{ steps.gate.outputs.baseline }}
+  delta:
+    description: "Difference between current and baseline, in percentage points."
+    value: ${{ steps.gate.outputs.delta }}
+  status:
+    description: "One of: ok, improved, fail."
+    value: ${{ steps.gate.outputs.status }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    # The gate only uses the standard library, so it runs straight from the action's
+    # own checkout: the version is the action ref (e.g. @v1), no PyPI install needed.
+    - name: Run coverage gate
+      id: gate
+      shell: bash
+      env:
+        GATE_XML: ${{ inputs.coverage-xml }}
+        GATE_BASELINE: ${{ inputs.baseline }}
+        GATE_UPDATE: ${{ inputs.update-baseline }}
+      run: |
+        args=(--coverage-xml "$GATE_XML" --baseline "$GATE_BASELINE")
+        if [ "$GATE_UPDATE" != "true" ]; then
+          args+=(--check-only)
+        fi
+        python "${{ github.action_path }}/coverage_gate.py" "${args[@]}"
